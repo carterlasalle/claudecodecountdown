@@ -18,6 +18,7 @@ const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
 export interface ScheduleResult {
   success: boolean;
   messageIds?: string[];
+  scheduledMessages?: { type: string; scheduledFor: string }[];
   error?: string;
 }
 
@@ -33,10 +34,12 @@ export interface ScheduleParams {
  * 2. At the exact access time
  * 
  * Requires a Twilio Messaging Service for scheduled messages.
+ * Twilio requires scheduled messages to be at least 15 minutes in the future.
  */
 export async function scheduleAccessNotifications(
   params: ScheduleParams
 ): Promise<ScheduleResult> {
+  // Validate credentials
   if (!accountSid || !authToken) {
     return {
       success: false,
@@ -53,61 +56,73 @@ export async function scheduleAccessNotifications(
 
   const client = twilio(accountSid, authToken);
   const messageIds: string[] = [];
+  const scheduledMessages: { type: string; scheduledFor: string }[] = [];
 
-  const fiveMinutesBefore = new Date(params.accessTime.getTime() - 5 * 60 * 1000);
+  // Calculate times
   const now = new Date();
-
+  const fiveMinutesBefore = new Date(params.accessTime.getTime() - 5 * 60 * 1000);
+  
   // Twilio requires scheduled messages to be at least 15 minutes in the future
-  const fifteenMinutesFromNow = new Date(now.getTime() + 15 * 60 * 1000);
+  // Adding 1 minute buffer to be safe
+  const minimumScheduleTime = new Date(now.getTime() + 16 * 60 * 1000);
 
   // Format the access time for display in the message
-  const accessTimeFormatted = params.accessTime.toLocaleString('en-US', {
+  const accessTimeFormatted = params.accessTime.toLocaleTimeString('en-US', {
     timeZone: 'UTC',
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-    month: 'short',
-    day: 'numeric',
   });
 
   try {
-    // Schedule 5-minute warning (only if it's at least 15 min in the future)
-    if (fiveMinutesBefore > fifteenMinutesFromNow) {
+    // Schedule 5-minute warning if it's far enough in the future
+    if (fiveMinutesBefore >= minimumScheduleTime) {
       const warningMessage = await client.messages.create({
-        body: `⏰ Claude Code Access Alert: Your access will be restored in 5 MINUTES! (${accessTimeFormatted} UTC)`,
+        body: `Claude Code Countdown: Heads up - your access returns in about 5 minutes (${accessTimeFormatted} UTC). Get ready to code! - claudecodecountdown.com`,
         messagingServiceSid,
         to: params.phoneNumber,
         scheduleType: 'fixed',
         sendAt: fiveMinutesBefore,
       });
       messageIds.push(warningMessage.sid);
+      scheduledMessages.push({
+        type: '5-minute warning',
+        scheduledFor: fiveMinutesBefore.toISOString(),
+      });
     }
 
-    // Schedule exact time notification (only if it's at least 15 min in the future)
-    if (params.accessTime > fifteenMinutesFromNow) {
+    // Schedule access time notification if it's far enough in the future
+    if (params.accessTime >= minimumScheduleTime) {
       const accessMessage = await client.messages.create({
-        body: `🎉 Claude Code Access RESTORED! You can now use Claude Code again. Time: ${accessTimeFormatted} UTC`,
+        body: `Claude Code Countdown: Your access has been restored. Time to get back to coding! - claudecodecountdown.com`,
         messagingServiceSid,
         to: params.phoneNumber,
         scheduleType: 'fixed',
         sendAt: params.accessTime,
       });
       messageIds.push(accessMessage.sid);
+      scheduledMessages.push({
+        type: 'access restored',
+        scheduledFor: params.accessTime.toISOString(),
+      });
     }
 
+    // Check if any messages were scheduled
     if (messageIds.length === 0) {
       return {
         success: false,
-        error: 'The selected time must be at least 15 minutes in the future for scheduled messages.',
+        error: 'The selected time must be at least 16 minutes in the future for scheduled messages.',
       };
     }
 
     return {
       success: true,
       messageIds,
+      scheduledMessages,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('Twilio scheduling error:', error);
     return {
       success: false,
       error: `Failed to schedule SMS: ${errorMessage}`,

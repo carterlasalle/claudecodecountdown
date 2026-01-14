@@ -73,8 +73,9 @@ export async function POST(request: NextRequest) {
     if (result.success) {
       return NextResponse.json({
         success: true,
-        message: 'SMS notifications scheduled successfully!',
+        message: `${result.scheduledMessages?.length || 0} SMS notification(s) scheduled!`,
         messageIds: result.messageIds,
+        scheduledMessages: result.scheduledMessages,
       });
     } else {
       return NextResponse.json(

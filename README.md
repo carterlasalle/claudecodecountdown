@@ -50,18 +50,32 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ## Twilio Setup
 
+Scheduled SMS requires a **Messaging Service** (not just a phone number).
+
+### Step 1: Create Twilio Account
 1. Sign up at [twilio.com](https://www.twilio.com/) (free trial includes credits)
 2. From the Console, copy your **Account SID** and **Auth Token**
 3. Get a Twilio phone number
-4. Add credentials to `.env.local`:
+
+### Step 2: Create Messaging Service (Required for Scheduling)
+1. Go to [Messaging Services](https://console.twilio.com/us1/develop/sms/services)
+2. Click **Create Messaging Service**
+3. Name it (e.g., "Claude Code Countdown")
+4. Add your Twilio phone number to the **Sender Pool**
+5. Copy the **Messaging Service SID** (starts with `MG`)
+
+### Step 3: Configure Environment
+Add credentials to `.env.local`:
 
 ```env
-TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=your_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
+TWILIO_MESSAGING_SERVICE_SID=MGxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-**Note**: Free trial requires verifying recipient phone numbers first.
+**Notes**:
+- Free trial requires verifying recipient phone numbers first
+- Scheduled messages must be at least 15 minutes in the future
 
 ## Usage
 

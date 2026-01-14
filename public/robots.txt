@@ -1,0 +1,8 @@
+# robots.txt for Claude Code Countdown
+# https://claudecodecountdown.com
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://claudecodecountdown.com/sitemap.xml
